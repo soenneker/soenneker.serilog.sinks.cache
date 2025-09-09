@@ -1,15 +1,16 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Threading;
-using System.Threading.Channels;
-using System.Threading.Tasks;
-using Serilog.Events;
+﻿using Serilog.Events;
 using Serilog.Formatting.Display;
 using Soenneker.Extensions.Task;
 using Soenneker.Extensions.ValueTask;
 using Soenneker.Serilog.Sinks.Cache.Abstract;
 using Soenneker.Serilog.Sinks.Cache.Dtos;
+using Soenneker.Utils.AtomicBool;
 using Soenneker.Utils.ReusableStringWriter;
+using System;
+using System.Collections.Generic;
+using System.Threading;
+using System.Threading.Channels;
+using System.Threading.Tasks;
 
 namespace Soenneker.Serilog.Sinks.Cache;
 
@@ -35,19 +36,20 @@ public sealed class SerilogCacheSink : ISerilogCacheSink
     private readonly long? _byteBudget; // null => no byte limit
     private long _qBytes;
 
-    private int _disposed; // idempotent dispose
-    private volatile bool _enabled = true; // enabled by default
+    // Lifecycle & toggle
+    private readonly AtomicBool _disposed = new();
+    private readonly AtomicBool _enabled = new(true);
 
     public int? Capacity => _capacity;
     public long? ByteBudget => _byteBudget;
-    public bool IsEnabled => _enabled;
+    public bool IsEnabled => _enabled.Value;
+    private bool IsDisposed => _disposed.Value;
 
     public SerilogCacheSink(int? capacity = null, long? byteBudget = null, string outputTemplate = _defaultTemplate, IFormatProvider? formatProvider = null)
     {
-        if (capacity is < 0) 
+        if (capacity is < 0)
             throw new ArgumentOutOfRangeException(nameof(capacity));
-
-        if (byteBudget is < 0) 
+        if (byteBudget is < 0)
             throw new ArgumentOutOfRangeException(nameof(byteBudget));
 
         _capacity = capacity;
@@ -61,19 +63,16 @@ public sealed class SerilogCacheSink : ISerilogCacheSink
 
     public void Emit(LogEvent logEvent)
     {
-        // Don't emit if sink is disabled
-        if (!_enabled)
+        if (!_enabled.Value || IsDisposed)
             return;
 
-        // No volatile needed; channel completion safely rejects after disposal.
         _ch.Writer.TryWrite(new LogEvt(logEvent));
     }
 
     public Task<List<string>> Snapshot()
     {
         var tcs = new TaskCompletionSource<List<string>>(TaskCreationOptions.RunContinuationsAsynchronously);
-
-        if (_disposed != 0)
+        if (IsDisposed)
         {
             tcs.SetResult([]);
             return tcs.Task;
@@ -86,8 +85,7 @@ public sealed class SerilogCacheSink : ISerilogCacheSink
     public Task<List<string>> Drain()
     {
         var tcs = new TaskCompletionSource<List<string>>(TaskCreationOptions.RunContinuationsAsynchronously);
-
-        if (_disposed != 0)
+        if (IsDisposed)
         {
             tcs.SetResult([]);
             return tcs.Task;
@@ -100,7 +98,7 @@ public sealed class SerilogCacheSink : ISerilogCacheSink
     public Task Clear()
     {
         var tcs = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
-        if (_disposed != 0)
+        if (IsDisposed)
         {
             tcs.SetResult(true);
             return tcs.Task;
@@ -113,7 +111,7 @@ public sealed class SerilogCacheSink : ISerilogCacheSink
     public Task Enable()
     {
         var tcs = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
-        if (_disposed != 0)
+        if (IsDisposed)
         {
             tcs.SetResult(false);
             return tcs.Task;
@@ -126,7 +124,7 @@ public sealed class SerilogCacheSink : ISerilogCacheSink
     public Task Disable()
     {
         var tcs = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
-        if (_disposed != 0)
+        if (IsDisposed)
         {
             tcs.SetResult(false);
             return tcs.Task;
@@ -138,7 +136,8 @@ public sealed class SerilogCacheSink : ISerilogCacheSink
 
     private async Task ReadLoop()
     {
-        await foreach (Msg msg in _ch.Reader.ReadAllAsync().ConfigureAwait(false))
+        await foreach (Msg msg in _ch.Reader.ReadAllAsync()
+                           .ConfigureAwait(false))
         {
             switch (msg)
             {
@@ -165,12 +164,12 @@ public sealed class SerilogCacheSink : ISerilogCacheSink
                     break;
 
                 case EnableReq(var tcs):
-                    _enabled = true;
+                    _enabled.Value = true;
                     tcs.TrySetResult(true);
                     break;
 
                 case DisableReq(var tcs):
-                    _enabled = false;
+                    _enabled.Value = false;
                     tcs.TrySetResult(true);
                     break;
             }
@@ -207,17 +206,14 @@ public sealed class SerilogCacheSink : ISerilogCacheSink
     private List<string> GetSnapshot()
     {
         var res = new List<string>(_q.Count);
-
         foreach (Entry e in _q)
             res.Add(e.Line);
-
         return res;
     }
 
     private List<string> DrainInternal()
     {
         var res = new List<string>(_q.Count);
-
         while (_q.Count > 0)
         {
             Entry e = _q.Dequeue();
@@ -236,30 +232,35 @@ public sealed class SerilogCacheSink : ISerilogCacheSink
 
     public async ValueTask DisposeAsync()
     {
-        if (Interlocked.Exchange(ref _disposed, 1) != 0)
+        if (!_disposed.TrySetTrue())
             return;
 
         _ch.Writer.TryComplete();
         await _readerTask.NoSync();
-        await _sw.DisposeAsync().NoSync();
+        await _sw.DisposeAsync()
+            .NoSync();
     }
 
     public void Dispose()
     {
-        if (Interlocked.Exchange(ref _disposed, 1) != 0) 
+        if (!_disposed.TrySetTrue())
             return;
 
         _ch.Writer.TryComplete();
 
         try
         {
-            _readerTask.GetAwaiter().GetResult();
+            _readerTask.GetAwaiter()
+                .GetResult();
         }
         catch
         {
             /* swallow */
         }
 
-        _sw.DisposeAsync().AsTask().GetAwaiter().GetResult();
+        _sw.DisposeAsync()
+            .AsTask()
+            .GetAwaiter()
+            .GetResult();
     }
 }
