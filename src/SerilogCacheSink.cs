@@ -4,13 +4,12 @@ using Soenneker.Extensions.Task;
 using Soenneker.Extensions.ValueTask;
 using Soenneker.Serilog.Sinks.Cache.Abstract;
 using Soenneker.Serilog.Sinks.Cache.Dtos;
-using Soenneker.Utils.AtomicBool;
 using Soenneker.Utils.ReusableStringWriter;
 using System;
 using System.Collections.Generic;
-using System.Threading;
 using System.Threading.Channels;
 using System.Threading.Tasks;
+using Soenneker.Atomics.Bools;
 
 namespace Soenneker.Serilog.Sinks.Cache;
 
