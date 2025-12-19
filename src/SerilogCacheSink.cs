@@ -36,8 +36,8 @@ public sealed class SerilogCacheSink : ISerilogCacheSink
     private long _qBytes;
 
     // Lifecycle & toggle
-    private readonly AtomicBool _disposed = new();
-    private readonly AtomicBool _enabled = new(true);
+    private AtomicBool _disposed;
+    private AtomicBool _enabled = new(true);
 
     public int? Capacity => _capacity;
     public long? ByteBudget => _byteBudget;
@@ -136,7 +136,7 @@ public sealed class SerilogCacheSink : ISerilogCacheSink
     private async Task ReadLoop()
     {
         await foreach (Msg msg in _ch.Reader.ReadAllAsync()
-                           .ConfigureAwait(false))
+                                     .ConfigureAwait(false))
         {
             switch (msg)
             {
@@ -237,7 +237,7 @@ public sealed class SerilogCacheSink : ISerilogCacheSink
         _ch.Writer.TryComplete();
         await _readerTask.NoSync();
         await _sw.DisposeAsync()
-            .NoSync();
+                 .NoSync();
     }
 
     public void Dispose()
@@ -250,7 +250,7 @@ public sealed class SerilogCacheSink : ISerilogCacheSink
         try
         {
             _readerTask.GetAwaiter()
-                .GetResult();
+                       .GetResult();
         }
         catch
         {
@@ -258,8 +258,8 @@ public sealed class SerilogCacheSink : ISerilogCacheSink
         }
 
         _sw.DisposeAsync()
-            .AsTask()
-            .GetAwaiter()
-            .GetResult();
+           .AsTask()
+           .GetAwaiter()
+           .GetResult();
     }
 }
