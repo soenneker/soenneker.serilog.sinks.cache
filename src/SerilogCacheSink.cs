@@ -9,7 +9,7 @@ using System;
 using System.Collections.Generic;
 using System.Threading.Channels;
 using System.Threading.Tasks;
-using Soenneker.Atomics.Bools;
+using Soenneker.Atomics.ValueBools;
 
 namespace Soenneker.Serilog.Sinks.Cache;
 
@@ -36,8 +36,8 @@ public sealed class SerilogCacheSink : ISerilogCacheSink
     private long _qBytes;
 
     // Lifecycle & toggle
-    private AtomicBool _disposed;
-    private AtomicBool _enabled = new(true);
+    private ValueAtomicBool _disposed;
+    private ValueAtomicBool _enabled = new(true);
 
     public int? Capacity => _capacity;
     public long? ByteBudget => _byteBudget;
