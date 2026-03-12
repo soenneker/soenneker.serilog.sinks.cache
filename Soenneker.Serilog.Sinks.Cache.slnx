@@ -4,10 +4,11 @@
   </Folder>
   <Folder Name="/.github/workflows/">
     <File Path=".github/workflows/build-and-test.yml" />
+    <File Path=".github/workflows/codeql.yml" />
     <File Path=".github/workflows/publish-package.yml" />
   </Folder>
   <Folder Name="/src/">
-    <Project Path="src/Soenneker.Serilog.Sinks.Cache.csproj" />
+    <Project Path="src/Soenneker.Serilog.Sinks.Cache/Soenneker.Serilog.Sinks.Cache.csproj" />
   </Folder>
   <Folder Name="/test/">
     <Project Path="test/Soenneker.Serilog.Sinks.Cache.Tests/Soenneker.Serilog.Sinks.Cache.Tests.csproj" />

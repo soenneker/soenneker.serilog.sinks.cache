@@ -27,7 +27,7 @@
     </ItemGroup>
 
     <ItemGroup>
-        <ProjectReference Include="..\..\src\Soenneker.Serilog.Sinks.Cache.csproj" />
+        <ProjectReference Include="..\..\src\Soenneker.Serilog.Sinks.Cache\Soenneker.Serilog.Sinks.Cache.csproj" />
     </ItemGroup>
 
     <ItemGroup>
