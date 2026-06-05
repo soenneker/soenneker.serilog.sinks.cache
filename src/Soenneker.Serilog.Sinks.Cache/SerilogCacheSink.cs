@@ -60,6 +60,10 @@ public sealed class SerilogCacheSink : ISerilogCacheSink
         _readerTask = Task.Run(ReadLoop);
     }
 
+    /// <summary>
+    /// Executes the emit operation.
+    /// </summary>
+    /// <param name="logEvent">The log event.</param>
     public void Emit(LogEvent logEvent)
     {
         if (!_enabled.Value || IsDisposed)
@@ -229,6 +233,10 @@ public sealed class SerilogCacheSink : ISerilogCacheSink
         _qBytes = 0;
     }
 
+    /// <summary>
+    /// Asynchronously releases resources used by the current instance.
+    /// </summary>
+    /// <returns>A task that represents the asynchronous operation.</returns>
     public async ValueTask DisposeAsync()
     {
         if (!_disposed.TrySetTrue())
@@ -240,6 +248,9 @@ public sealed class SerilogCacheSink : ISerilogCacheSink
                  .NoSync();
     }
 
+    /// <summary>
+    /// Releases resources used by the current instance.
+    /// </summary>
     public void Dispose()
     {
         if (!_disposed.TrySetTrue())
