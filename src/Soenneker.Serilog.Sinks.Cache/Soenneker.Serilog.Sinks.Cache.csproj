@@ -49,6 +49,6 @@
         <PackageReference Include="Soenneker.Atomics.ValueBools" Version="4.0.33" />
         <PackageReference Include="Soenneker.Extensions.Task" Version="4.0.124" />
         <PackageReference Include="Soenneker.Extensions.ValueTask" Version="4.0.116" />
-        <PackageReference Include="Soenneker.Utils.ReusableStringWriter" Version="4.0.22" />
+        <PackageReference Include="Soenneker.Utils.ReusableStringWriter" Version="4.0.23" />
     </ItemGroup>
 </Project>
