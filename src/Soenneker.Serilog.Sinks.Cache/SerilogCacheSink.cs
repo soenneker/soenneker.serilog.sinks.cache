@@ -61,9 +61,9 @@ public sealed class SerilogCacheSink : ISerilogCacheSink
     }
 
     /// <summary>
-    /// Executes the emit operation.
+    /// Performs emit for the Serilog Cache Sink.
     /// </summary>
-    /// <param name="logEvent">The log event.</param>
+    /// <param name="logEvent">log Event supplied to emit.</param>
     public void Emit(LogEvent logEvent)
     {
         if (!_enabled.Value || IsDisposed)

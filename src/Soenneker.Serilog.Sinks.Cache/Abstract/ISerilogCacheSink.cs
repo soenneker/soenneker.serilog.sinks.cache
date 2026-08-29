@@ -29,30 +29,30 @@ public interface ISerilogCacheSink : ILogEventSink, IAsyncDisposable, IDisposabl
     /// <summary>
     /// Gets a snapshot of all cached log entries without removing them from the cache.
     /// </summary>
-    /// <returns>A task that represents the asynchronous operation and contains the list of cached log entries</returns>
+    /// <returns>A task whose result is the collection returned by snapshot.</returns>
     Task<List<string>> Snapshot();
 
     /// <summary>
     /// Drains all cached log entries, removing them from the cache and returning them.
     /// </summary>
-    /// <returns>A task that represents the asynchronous operation and contains the list of drained log entries</returns>
+    /// <returns>A task whose result is the collection returned by drain.</returns>
     Task<List<string>> Drain();
 
     /// <summary>
     /// Clears all cached log entries from the cache.
     /// </summary>
-    /// <returns>A task that represents the asynchronous operation</returns>
+    /// <returns>A task that completes when the Serilog Cache Sink has been cleared.</returns>
     Task Clear();
 
     /// <summary>
     /// Enables the sink to accept log events.
     /// </summary>
-    /// <returns>A task that represents the asynchronous operation</returns>
+    /// <returns>A task that completes when the enable operation is complete.</returns>
     Task Enable();
 
     /// <summary>
     /// Disables the sink from accepting log events.
     /// </summary>
-    /// <returns>A task that represents the asynchronous operation</returns>
+    /// <returns>A task that completes when the disable operation is complete.</returns>
     Task Disable();
 }
