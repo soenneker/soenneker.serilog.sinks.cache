@@ -81,7 +81,9 @@ public sealed class SerilogCacheSink : ISerilogCacheSink
             return tcs.Task;
         }
 
-        _ch.Writer.TryWrite(new SnapshotReq(tcs));
+        if (!_ch.Writer.TryWrite(new SnapshotReq(tcs)))
+            tcs.TrySetResult([]);
+
         return tcs.Task;
     }
 
@@ -94,7 +96,9 @@ public sealed class SerilogCacheSink : ISerilogCacheSink
             return tcs.Task;
         }
 
-        _ch.Writer.TryWrite(new DrainReq(tcs));
+        if (!_ch.Writer.TryWrite(new DrainReq(tcs)))
+            tcs.TrySetResult([]);
+
         return tcs.Task;
     }
 
@@ -107,7 +111,9 @@ public sealed class SerilogCacheSink : ISerilogCacheSink
             return tcs.Task;
         }
 
-        _ch.Writer.TryWrite(new ClearReq(tcs));
+        if (!_ch.Writer.TryWrite(new ClearReq(tcs)))
+            tcs.TrySetResult(true);
+
         return tcs.Task;
     }
 
@@ -120,7 +126,9 @@ public sealed class SerilogCacheSink : ISerilogCacheSink
             return tcs.Task;
         }
 
-        _ch.Writer.TryWrite(new EnableReq(tcs));
+        if (!_ch.Writer.TryWrite(new EnableReq(tcs)))
+            tcs.TrySetResult(false);
+
         return tcs.Task;
     }
 
@@ -133,7 +141,9 @@ public sealed class SerilogCacheSink : ISerilogCacheSink
             return tcs.Task;
         }
 
-        _ch.Writer.TryWrite(new DisableReq(tcs));
+        if (!_ch.Writer.TryWrite(new DisableReq(tcs)))
+            tcs.TrySetResult(false);
+
         return tcs.Task;
     }
 

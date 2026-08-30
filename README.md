@@ -5,47 +5,65 @@
 
 # Soenneker.Serilog.Sinks.Cache
 
-A Serilog sink cache that allows for storing, retrieving, and removing log messages. Queue-backed in-memory log cache for Serilog with optional capacity and byte budget limits.
+An in-memory Serilog sink for inspecting, draining, or clearing a bounded queue of formatted log messages.
 
-## Install
+## Installation
 
 ```bash
 dotnet add package Soenneker.Serilog.Sinks.Cache
 ```
 
-## Quick start
+## Register and configure
+
+Register the sink, then use the same DI-owned instance in the Serilog configuration:
 
 ```csharp
-using Soenneker.Serilog.Sinks.Cache.Registrars;
 using Microsoft.Extensions.DependencyInjection;
+using Serilog;
+using Soenneker.Serilog.Sinks.Cache.Abstract;
+using Soenneker.Serilog.Sinks.Cache.Registrars;
 
 var services = new ServiceCollection();
-var result = services.AddSerilogCacheSink();
+
+services.AddSerilogCacheSink(
+    capacity: 500,
+    byteBudget: 1_000_000,
+    outputTemplate: "{Timestamp:HH:mm:ss.fff} [{Level:u3}] {Message:lj}{NewLine}{Exception}");
+
+await using ServiceProvider provider = services.BuildServiceProvider();
+
+Log.Logger = new LoggerConfiguration()
+    .WriteTo.LogCache(provider)
+    .CreateLogger();
+
+ISerilogCacheSink cache = provider.GetRequiredService<ISerilogCacheSink>();
 ```
 
-Registers the Serilog cache sink in the dependency injection container. This allows you to inject ISerilogCacheSink to control the sink (enable/disable, get values, etc.).
+The default DI lifetime is singleton. If `serviceLifetime` is changed, the service provider passed to `LogCache` must resolve the instance whose lifetime is at least as long as the Serilog logger.
 
-## What you get
+## Read and manage messages
 
-- `ISerilogCacheSink` — A Serilog sink cache that allows for storing, retrieving, and removing log messages. Queue-backed in-memory log cache for Serilog with optional capacity and byte budget limits.
-- `SerilogCacheSinkRegistrar` — A Serilog sink cache that allows for storing, retrieving, and removing log messages.
+```csharp
+List<string> current = await cache.Snapshot(); // Leaves entries in the cache.
+List<string> removed = await cache.Drain();    // Returns and removes every entry.
 
-## API at a glance
+await cache.Clear();
+await cache.Disable();
+await cache.Enable();
+```
 
-| API | What it does | Result / important behavior |
-| --- | --- | --- |
-| `ISerilogCacheSink.Capacity` | Gets the optional capacity limit for the cache. Returns null if unbounded. | Gets the optional capacity limit for the cache. Returns null if unbounded. |
-| `ISerilogCacheSink.ByteBudget` | Gets the optional byte budget limit for the cache. Returns null if no byte limit. | Gets the optional byte budget limit for the cache. Returns null if no byte limit. |
-| `ISerilogCacheSink.IsEnabled` | Gets whether the sink is currently enabled and will accept log events. | Gets whether the sink is currently enabled and will accept log events. |
-| `ISerilogCacheSink.Snapshot()` | Gets a snapshot of all cached log entries without removing them from the cache. | A point-in-time collection of cached entries; the cache is left unchanged. |
-| `ISerilogCacheSink.Drain()` | Drains all cached log entries, removing them from the cache and returning them. | All removed entries; the cache is empty after the drain completes. |
-| `ISerilogCacheSink.Clear()` | Clears all cached log entries from the cache. | A task that completes when the Serilog Cache Sink has been cleared. |
-| `ISerilogCacheSink.Enable()` | Enables the sink to accept log events. | A task that completes when the enable operation is complete. |
-| `ISerilogCacheSink.Disable()` | Disables the sink from accepting log events. | A task that completes when the disable operation is complete. |
-| `SerilogCacheSinkRegistrar.LogCache(writeTo, serviceProvider, restrictedToMinimumLevel)` | Adds a queue-backed in-memory log cache using an existing instance from DI. Use this when you've already registered the sink with AddSerilogCacheSink(). | The logger configuration. |
-| `SerilogCacheSinkRegistrar.AddSerilogCacheSink(services, capacity, byteBudget, outputTemplate, formatProvider, serviceLifetime)` | Registers the Serilog cache sink in the dependency injection container. This allows you to inject ISerilogCacheSink to control the sink (enable/disable, get values, etc.). | The service collection for chaining. |
+Commands and log events share one channel and are processed by one reader. Awaiting a command means all channel items ordered before that command have been processed. Calls made concurrently by different producers may naturally interleave.
 
-## Practical notes
+`Disable` prevents later `Emit` calls from entering the channel; it does not clear entries already cached. `Enable` starts accepting events again.
 
-- Calls that return a cached or singleton value reuse the same instance until the owning service is disposed.
-- Dispose instances you own when their scope ends so held resources can be released.
+## Capacity behavior
+
+The cache retains entries in FIFO order. When `capacity` is exceeded, the oldest entries are evicted until the count fits. When `byteBudget` is exceeded, the oldest entries are evicted until the estimated size fits. If one entry alone exceeds the byte budget, it is immediately evicted.
+
+The byte estimate is `message.Length * 2`, representing the formatted string's UTF-16 character storage. It does not include object, queue, or runtime overhead and is not the UTF-8 payload size.
+
+`null` or `0` disables the corresponding limit. Without either limit, the cache is unbounded and can consume memory for the lifetime of the sink.
+
+The sink owns a background reader. Dispose the DI service provider and close the Serilog logger during application or test teardown. After disposal, read operations return an empty list and control operations complete without changing state.
+
+Cached messages can contain credentials or personal data. Apply suitable log filtering and do not expose `Snapshot` or `Drain` results directly to untrusted callers.

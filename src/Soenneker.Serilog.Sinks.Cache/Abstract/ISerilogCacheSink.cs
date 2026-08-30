@@ -6,8 +6,7 @@ using Serilog.Core;
 namespace Soenneker.Serilog.Sinks.Cache.Abstract;
 
 /// <summary>
-/// A Serilog sink cache that allows for storing, retrieving, and removing log messages.
-/// Queue-backed in-memory log cache for Serilog with optional capacity and byte budget limits.
+/// A queue-backed in-memory Serilog sink with snapshot, drain, clear, and enable controls plus optional count and approximate byte limits.
 /// </summary>
 public interface ISerilogCacheSink : ILogEventSink, IAsyncDisposable, IDisposable
 {
@@ -17,7 +16,7 @@ public interface ISerilogCacheSink : ILogEventSink, IAsyncDisposable, IDisposabl
     int? Capacity { get; }
 
     /// <summary>
-    /// Gets the optional byte budget limit for the cache. Returns null if no byte limit.
+    /// Gets the optional approximate UTF-16 message byte budget. Returns null if no byte limit was configured.
     /// </summary>
     long? ByteBudget { get; }
 
@@ -27,13 +26,13 @@ public interface ISerilogCacheSink : ILogEventSink, IAsyncDisposable, IDisposabl
     bool IsEnabled { get; }
 
     /// <summary>
-    /// Gets a snapshot of all cached log entries without removing them from the cache.
+    /// Gets a FIFO snapshot of all formatted log entries without removing them from the cache.
     /// </summary>
     /// <returns>A task whose result is the collection returned by snapshot.</returns>
     Task<List<string>> Snapshot();
 
     /// <summary>
-    /// Drains all cached log entries, removing them from the cache and returning them.
+    /// Removes and returns all formatted log entries in FIFO order.
     /// </summary>
     /// <returns>A task whose result is the collection returned by drain.</returns>
     Task<List<string>> Drain();
